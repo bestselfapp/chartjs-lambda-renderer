@@ -16,3 +16,7 @@ variable "image_tag" {
 variable "developer_role_arn" {
   description = "The ARN of the role developers use locally to execute this Lambda with."
 }
+
+variable "log_level" {
+  description = "The LOG_LEVEL environment variable value given to the Lambda function."
+}

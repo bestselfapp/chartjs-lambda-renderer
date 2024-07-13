@@ -11,7 +11,7 @@ resource "aws_lambda_function" "chartjs_renderer" {
 
   environment {
     variables = {
-      LOG_LEVEL                        = "debug"
+      LOG_LEVEL = "${var.log_level}"
     }
   }
 }

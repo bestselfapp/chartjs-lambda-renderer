@@ -7,16 +7,31 @@ export async function handler(event) {
     logger.debug(`Starting ChartJs Renderer with event: ${JSON.stringify(event)}`);
 
     try {
-        // Parse the incoming event to extract parameters
-        const body = JSON.parse(event.body);
-        
+        // Ensure event.body is defined and is a valid JSON string
+        if (!event.body) {
+            const errMsg = 'Event body is missing';
+            logger.error(errMsg);
+            throw new Error(errMsg);
+        }
+
+        let body;
+        try {
+            body = JSON.parse(event.body);
+        } catch (parseError) {
+            const errMsg = 'Invalid JSON format in event body';
+            logger.error(errMsg);
+            throw new Error(errMsg);
+        }
+
         const width = body.width || 300;
         const height = body.height || 300;
         const backgroundColour = body.backgroundColour || 'transparent';
         const configuration = body.configuration;
 
         if (!configuration) {
-            throw new Error('Configuration object is required');
+            const errMsg = 'Configuration object is required';
+            logger.error(errMsg);
+            throw new Error(errMsg);
         }
 
         // Initialize ChartJSNodeCanvas
@@ -48,7 +63,7 @@ export async function handler(event) {
             isBase64Encoded: true,
         };
     } catch (err) {
-        logger.error(`chartJsRenderer - Error: ${err}`);
+        logger.error(`chartJsRenderer - Error: ${err.stack}`);
         return {
             statusCode: 500,
             body: JSON.stringify({ error: err.message }),
