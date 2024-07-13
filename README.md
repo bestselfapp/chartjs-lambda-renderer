@@ -1,6 +1,6 @@
 # ChartJs Lambda Renderer
 
-Chartjs-lambda-renderer is a standalone AWS Lambda function designed to render Chart.js charts as images. Running Chart.js on a server with Node.js can involve dependencies that are tricky to install within Lambda’s environment. By using a Docker image, this package simplifies the process, providing a reliable and isolated service for generating chart images. This separation ensures that the complexities of Chart.js and its dependencies do not interfere with other dependencies in your functions that need to render ChartJS charts.
+Chartjs-lambda-renderer is a standalone AWS Lambda function designed to render Chart.js charts as images. Running Chart.js on the server side from Node.js can involve dependencies that are tricky to install within Lambda’s environment. By using a Docker image, this package simplifies the process, providing a reliable and isolated service for generating chart images. This separation ensures that the complexities of Chart.js and its dependencies do not interfere with other dependencies in your functions that need to render ChartJS charts.
 
 ## Build Locally
 
@@ -55,7 +55,7 @@ terraform apply -var-file env-$AWS_ENV.tfvars
 
 ## Deploy
 
-Commit to develop/master branches to trigger the GitHub Actions pipeline to deploy to dev/prod.  This microservice just uses Terraform and the GitHub Actions workflow to deploy the container image that Lambda uses to ECR, there is no local deploy script.  The Serverless Framework is not used for this service.  SLS had an issue running inside the Amazon container image, wanting a license key, which was the initial thing that led me towards Terraform.
+Commit to develop/master branches to trigger the GitHub Actions pipeline to deploy to dev/prod.  This microservice just uses Terraform and the GitHub Actions workflow to deploy the container image that Lambda uses to ECR, there is no local deploy script.
 
 ## Test
 
@@ -63,41 +63,53 @@ Commit to develop/master branches to trigger the GitHub Actions pipeline to depl
 export AWS_ENV="dev" && export AWS_PROFILE="bsa$AWS_ENV"
 export PLATFORM=linux/arm64 && export TARGETARCH=$PLATFORM
 
-
-
-# Add this to force it to immediately send a test email (make sure
-# LOCAL_DEBUG_OUTPUT_MODE is false when trying this)
-#     -e LOCAL_DEBUG_SENDNOW_MODE=true \
-
-# this is technically the way to run it but use the above to run with mocha
 docker run -it --rm --platform=$PLATFORM \
-    -v $(pwd):/var/task \
-    -v ~/.aws/:/root/.aws/ \
-    -e AWS_ENV -e AWS_PROFILE \
-    --env-file env-dev.env \
     -e LOCAL_DEBUG_OUTPUT_MODE=true \
-    bestselfapp/report-generator-lambdaimage:latest \
+    --entrypoint mocha \
+    bestselfapp/chartjs-lambda-renderer:latest
+
+# this is the proper way to run it to mimic Lambda, but for our purposes if we are running it locally to test changes to it, use the above to run with mocha
+docker run -it --rm --platform=$PLATFORM \
+    bestselfapp/chartjs-lambda-renderer:latest \
     index.handler
 ```
 
-## Test Payload in Lambda
+## Example Invocation from Local Code
 
-To test the Lambda function in AWS, here is a valid test message, as the service expects to receive the payload from SNS so it would be wrapped in an SNS envelope.  Note that the below is an incomplete SNS message but good enough for testing.
+To invoke the Lambda function directly from local code, you can use the AWS SDK. Here’s an example using Node.js:
 
-```json
-{
-    "Records": [
-        {
-            "EventSource": "aws:sns",
-            "EventVersion": "1.0",
-            "Sns": {
-                "Type": "Notification",
-                "MessageId": "12345678-1234-1234-1234-123456789012",
-                "TopicArn": "arn:aws:sns:us-west-2:123456789012:MyTopic",
-                "Subject": "BestSelfApp",
-                "Message": "{\"reportName\":\"progressEmailReport\",\"projectId\":\"0\",\"userId\":\"42606309\",\"timeSpanEnum\":\"last7days\"}"
-            }
-        }
-    ]
+```javascript
+const AWS = require('aws-sdk');
+const lambda = new AWS.Lambda();
+
+const params = {
+  FunctionName: 'bsa-chartjs-renderer',
+  Payload: JSON.stringify({
+    width: 400,
+    height: 400,
+    backgroundColour: '#ffffff',
+    configuration: {
+      type: 'bar',
+      data: {
+        labels: ['January', 'February', 'March', 'April'],
+        datasets: [{
+          label: 'Sales',
+          data: [10, 20, 30, 40]
+        }]
+      },
+      options: {}
+    }
+  })
+};
+
+try {
+  const data = await lambda.invoke(params).promise();
+  const payload = JSON.parse(data.Payload);
+  const imageBuffer = Buffer.from(payload.image, 'base64');
+  const filePath = path.resolve(__dirname, 'chart.png');
+  await fs.writeFile(filePath, imageBuffer);
+  console.log(`Image saved to ${filePath}`);
+} catch (err) {
+  console.error(err, err.stack);
 }
 ```
