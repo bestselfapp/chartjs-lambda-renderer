@@ -113,3 +113,5 @@ try {
   console.error(err, err.stack);
 }
 ```
+
+Note that you need to grant the Lambda permission to be executed by the caller first.  The `aws_lambda_permission` blocks in the provided Terraform module allow any Lambda function within the AWS account to call it and also references a developer role in the `env-dev.tfvars` file.  Setup your local development environment using this role in your profile so your local code can also invoke the Lambda function.

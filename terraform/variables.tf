@@ -12,3 +12,7 @@ variable "aws_env" {
 variable "image_tag" {
   default = "latest"
 }
+
+variable "developer_role_arn" {
+  description = "The ARN of the role developers use locally to execute this Lambda with."
+}

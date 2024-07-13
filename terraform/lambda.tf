@@ -31,7 +31,7 @@ resource "aws_lambda_permission" "allow_iam_role_invocation" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.chartjs_renderer.function_name
   principal     = "lambda.amazonaws.com"
-  source_arn    = "arn:aws:iam::805071920706:role/OrganizationAccountAccessRole"
+  source_arn    = "${var.developer_role_arn}"
 }
 
 resource "aws_iam_role" "lambda_execution_role" {
