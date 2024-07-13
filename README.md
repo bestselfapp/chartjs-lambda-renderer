@@ -47,7 +47,7 @@ cd terraform
 terraform init \
     -backend-config="bucket=bsa-tfstate-${AWS_ENV}" \
     -backend-config="key=chartjs-lambda-renderer-us-east-1/terraform.tfstate" \
-    -backend-config="region=${aws_primary_region}" \
+    -backend-config="region=us-east-1" \
     -backend-config="dynamodb_table=tfstate_${AWS_ENV}"
 # apply
 terraform apply -var-file env-$AWS_ENV.tfvars

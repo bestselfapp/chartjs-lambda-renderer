@@ -6,7 +6,7 @@ resource "aws_lambda_function" "chartjs_renderer" {
   memory_size   = 2048
   timeout       = 30
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.report_generator.repository_url}:${var.image_tag}"
+  image_uri     = "${aws_ecr_repository.chartjs_renderer.repository_url}:${var.image_tag}"
   architectures = ["arm64"]
 
   environment {
@@ -20,16 +20,16 @@ resource "aws_lambda_function" "chartjs_renderer" {
 resource "aws_lambda_permission" "allow_any_lambda_function" {
   statement_id  = "AllowExecutionFromAnyLambda"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.report_generator.function_name
+  function_name = aws_lambda_function.chartjs_renderer.function_name
   principal     = "lambda.amazonaws.com"
-  source_arn    = "arn:aws:lambda:region:account-id:function:*"
+  source_arn    = "arn:aws:lambda:${var.aws_primary_region}:${data.aws_caller_identity.current.account_id}:function:*"
 }
 
 # Allow the local AWS profile to call this Lambda function
 resource "aws_lambda_permission" "allow_iam_role_invocation" {
   statement_id  = "AllowExecutionFromIAMRole"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.report_generator.function_name
+  function_name = aws_lambda_function.chartjs_renderer.function_name
   principal     = "lambda.amazonaws.com"
   source_arn    = "arn:aws:iam::805071920706:role/OrganizationAccountAccessRole"
 }
