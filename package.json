@@ -1,0 +1,27 @@
+{
+  "name": "chartjs-lambda-renderer",
+  "version": "1.0.0",
+  "description": "A Lambda function to render Chart.js charts as images.",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [],
+  "author": "Doug Kerwin",
+  "license": "MIT",
+  "dependencies": {
+    "bunyan": "^1.8.15",
+    "bunyan-prettystream": "^0.1.3",
+    "chartjs-node-canvas": "^4.1.6",
+    "fs-extra": "11.2.0"
+  },
+  "devDependencies": {
+    "chai": "^5.1.1",
+    "mocha": "^10.6.0",
+    "sinon": "^18.0.0"
+  }
+}

@@ -1,0 +1,131 @@
+name: Token Processor CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Set up AWS credentials for dev
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: us-east-1
+        if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
+
+      - name: Set up AWS credentials for prod
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+        if: github.ref == 'refs/heads/main'
+
+      - name: Set commit hash environment variable
+        run: echo "COMMIT_HASH=${GITHUB_SHA}" >> $GITHUB_ENV
+
+      - name: Set environment variables for dev
+        if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
+        run: echo "AWS_ENV=dev" >> $GITHUB_ENV
+
+      - name: Set environment variables for prod
+        if: github.ref == 'refs/heads/main'
+        run: echo "AWS_ENV=prod" >> $GITHUB_ENV
+
+      - name: Setup environment variables for dev/prod
+        run: |
+          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
+          echo "AWS_PROFILE=bsa${{ env.AWS_ENV }}-terraform" >> $GITHUB_ENV
+          if [ "${{ env.AWS_ENV }}" = "dev" ]; then
+            echo "AWS_ACCOUNT_ID=805071920706" >> $GITHUB_ENV
+          else
+            echo "AWS_ACCOUNT_ID=612631974000" >> $GITHUB_ENV
+          fi
+          mkdir -p $HOME/.aws
+          touch $HOME/.aws/credentials
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID --profile bsa${{ env.AWS_ENV }}-terraform
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY --profile bsa${{ env.AWS_ENV }}-terraform
+          aws configure set default.region $AWS_REGION --profile bsa${{ env.AWS_ENV }}-terraform
+
+      # Set up QEMU to enable cross-platform builds
+      # QEMU is a generic and open-source machine emulator and virtualizer that allows for
+      # cross-platform builds. This is necessary for ensuring that the Docker image can be built
+      # for different architectures (e.g., arm64, arm64) regardless of the host architecture.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: all
+
+      # The Dockerfile is setup to rely on being built through buildx, it uses
+      # placeholders like --platform=$BUILDPLATFORM which are only populated
+      # through buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+  
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 --profile bsa${AWS_ENV}-terraform | docker login --username AWS --password-stdin ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/arm64
+          builder: default # necessary to ensure it runs through buildx
+          push: true
+          tags: |
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/bestselfapp/chartjs-lambda-renderer:latest
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/bestselfapp/chartjs-lambda-renderer:${{ env.COMMIT_HASH }}
+          # no-cache: true
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Apply Terraform
+        run: |
+          cd terraform
+          echo AWS_ENV=$AWS_ENV
+          export $(xargs < env-$AWS_ENV.tfvars)
+          terraform init \
+              -backend-config="bucket=bsa-tfstate-${AWS_ENV}" \
+              -backend-config="key=chartjs-lambda-renderer-us-east-1/terraform.tfstate" \
+              -backend-config="region=us-east-1" \
+              -backend-config="dynamodb_table=tfstate_${AWS_ENV}"
+          terraform apply -auto-approve -var="image_tag=${COMMIT_HASH}" -var-file="env-${AWS_ENV,,}.tfvars"
+        # env:
+        #   TF_LOG: DEBUG
+
+      - name: Tag image as active after successful deployment
+        if: success()
+        run: |
+          export REPOSITORY_URI=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/bestselfapp/chartjs-lambda-renderer
+          export IMAGE_TAG=${{ env.COMMIT_HASH }}
+          
+          # Pull the image by tag
+          docker pull $REPOSITORY_URI:$IMAGE_TAG
+          
+          # Tag the image with 'active'
+          docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:active
+          
+          # Push the 'active' tag to ECR
+          docker push $REPOSITORY_URI:active
+
+      - name: Upload Terraform Logs
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: terraform-logs
+          path: /home/runner/work/<REPO>/<REPO>/terraform-debug.log
