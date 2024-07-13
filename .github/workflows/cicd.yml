@@ -1,4 +1,4 @@
-name: Token Processor CI
+name: ChartJs Renderer CI
 
 on:
   push:
