@@ -10,16 +10,16 @@ export async function handler(event) {
         // Ensure event.body is defined and is a valid JSON string
         if (!event.body) {
             const errMsg = 'Event body is missing';
-            logger.error(errMsg);
+            logger.error(errMsg, { event });
             throw new Error(errMsg);
         }
-
+    
         let body;
         try {
             body = JSON.parse(event.body);
         } catch (parseError) {
-            const errMsg = 'Invalid JSON format in event body';
-            logger.error(errMsg);
+            const errMsg = `Invalid JSON format in event body: ${parseError}`;
+            logger.error(errMsg, { event });
             throw new Error(errMsg);
         }
 
