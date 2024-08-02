@@ -25,6 +25,15 @@ resource "aws_lambda_permission" "allow_any_lambda_function" {
   source_arn    = "arn:aws:lambda:${var.aws_primary_region}:${data.aws_caller_identity.current.account_id}:function:*"
 }
 
+# Allow any ECS container within the AWS account to invoke this Lambda function
+resource "aws_lambda_permission" "allow_ecs_invocation" {
+  statement_id  = "AllowExecutionFromECS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.chartjs_renderer.function_name
+  principal     = "ecs.amazonaws.com"
+  source_arn    = "arn:aws:ecs:${var.aws_primary_region}:${data.aws_caller_identity.current.account_id}:*"
+}
+
 # Allow the local AWS profile to call this Lambda function
 resource "aws_lambda_permission" "allow_iam_role_invocation" {
   statement_id  = "AllowExecutionFromIAMRole"
