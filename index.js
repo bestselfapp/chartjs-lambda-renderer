@@ -3,20 +3,37 @@ import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 import fs from 'fs-extra';
 import path from 'path';
 
+const afterDrawPlugin = {
+    id: 'afterDrawPlugin',
+    afterDraw: (chart) => {
+        // This space is intentionally left blank to allow custom afterDraw logic from the payload
+    }
+};
+
 export async function handler(event) {
     logger.debug(`Starting ChartJs Renderer with event: ${JSON.stringify(event)}`);
 
     try {
-        const width = event.width || 300;
-        const height = event.height || 300;
-        const backgroundColour = event.backgroundColour || 'transparent';
-        const configuration = event.configuration;
+        // Parse the event body if it exists
+        const body = event.body ? JSON.parse(event.body) : event;
+        logger.debug(`Parsed body: ${JSON.stringify(body)}`);
+
+        const width = body.width || 300;
+        const height = body.height || 300;
+        const backgroundColour = body.backgroundColour || 'transparent';
+        const configuration = body.configuration;
 
         if (!configuration) {
             const errMsg = 'Configuration object is required';
             logger.error(errMsg, { event });
             throw new Error(errMsg);
         }
+
+        logger.trace(`Configuration: ${JSON.stringify(configuration)}`);
+
+        // Add the afterDraw plugin to the configuration
+        configuration.plugins = configuration.plugins || [];
+        configuration.plugins.push(afterDrawPlugin);
 
         // Initialize ChartJSNodeCanvas
         const chartJSNodeCanvas = new ChartJSNodeCanvas({ 

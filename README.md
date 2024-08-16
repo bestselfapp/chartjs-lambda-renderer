@@ -87,6 +87,7 @@ docker rm chartjs-lambda-renderer
 export AWS_ENV="dev" && export AWS_PROFILE="bsa$AWS_ENV"
 export PLATFORM=linux/arm64 && export TARGETARCH=$PLATFORM
 docker run -it --rm --platform=$PLATFORM \
+    -e LOG_LEVEL=debug \
     -e LOCAL_DEBUG_OUTPUT_MODE=true \
     --entrypoint mocha \
     bestselfapp/chartjs-lambda-renderer:latest
@@ -126,13 +127,16 @@ Commit to develop/master branches to trigger the GitHub Actions pipeline to depl
 export AWS_ENV="dev" && export AWS_PROFILE="bsa$AWS_ENV"
 export PLATFORM=linux/arm64 && export TARGETARCH=$PLATFORM
 
+# make sure to build first, we're not passing in the local volume
 docker run -it --rm --platform=$PLATFORM \
+    -e LOG_LEVEL=debug \
     -e LOCAL_DEBUG_OUTPUT_MODE=true \
     --entrypoint mocha \
     bestselfapp/chartjs-lambda-renderer:latest
 
 # this is the proper way to run it to mimic Lambda, but for our purposes if we are running it locally to test changes to it, use the above to run with mocha
 docker run -it --rm --platform=$PLATFORM \
+    -e LOG_LEVEL=debug \
     bestselfapp/chartjs-lambda-renderer:latest \
     index.handler
 ```
