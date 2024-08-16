@@ -127,11 +127,13 @@ Commit to develop/master branches to trigger the GitHub Actions pipeline to depl
 export AWS_ENV="dev" && export AWS_PROFILE="bsa$AWS_ENV"
 export PLATFORM=linux/arm64 && export TARGETARCH=$PLATFORM
 
-# make sure to build first, we're not passing in the local volume
+# make sure to build first, we're not passing in the local volume for the
+# whole app, just the test output folder
 docker run -it --rm --platform=$PLATFORM \
     -e LOG_LEVEL=debug \
     -e LOCAL_DEBUG_OUTPUT_MODE=true \
     --entrypoint mocha \
+    -v $(pwd)/test-output:/var/task/test-output \
     bestselfapp/chartjs-lambda-renderer:latest
 
 # this is the proper way to run it to mimic Lambda, but for our purposes if we are running it locally to test changes to it, use the above to run with mocha
@@ -140,3 +142,19 @@ docker run -it --rm --platform=$PLATFORM \
     bestselfapp/chartjs-lambda-renderer:latest \
     index.handler
 ```
+
+## Security Considerations
+
+The chartjs-lambda-renderer function allows users to pass custom JavaScript code (e.g., functions like afterDraw) as part of the Chart.js configuration. This is necessary to support plugins, which are a core part of how Chart.js works, enabling custom drawing and behavior. However, executing user-provided code can introduce security risks, so several precautions have been implemented to mitigate these risks:
+
+Precautions Taken
+
+* Lambda Execution Environment: The renderer runs within an isolated AWS Lambda environment with a highly restricted IAM role. This ensures that even if malicious code were executed, it would have minimal impact, as the Lambda function has no permissions to perform any material actions within AWS.
+* Function Name Restriction: Only specific, known-safe Chart.js hooks (afterDraw, beforeRender, etc.) are allowed. Unrecognized function names are removed.
+* Content Sanitization: Functions are checked for potentially harmful patterns (e.g., eval, Function, loops). Disallowed content is rejected.
+* Type Checking: Non-standard properties in the configuration are stripped out to reduce the attack surface.
+
+Additional Recommendations for Users
+
+* Restrict Access: Limit the invocation of this Lambda function to trusted services or users using IAM roles and policies.
+* Input Validation: Ensure all data passed to the Lambda, especially user-generated content, is validated and sanitized at the source.
