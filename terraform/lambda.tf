@@ -84,3 +84,9 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_policy_attachment" {
   role       = aws_iam_role.lambda_execution_role.name
   policy_arn = aws_iam_policy.lambda_basic_policy.arn
 }
+
+# CloudWatch Log Group for Lambda function with 2 weeks retention
+resource "aws_cloudwatch_log_group" "chartjs_renderer_log_group" {
+  name              = "/aws/lambda/${aws_lambda_function.chartjs_renderer.function_name}"
+  retention_in_days = 14
+}
