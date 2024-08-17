@@ -57,10 +57,7 @@ export async function handler(event) {
         };
     } catch (err) {
         logger.error(`chartJsRenderer - Error: ${err.stack}`, { event });
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: err.message }),
-        };
+        throw new Error(err.message);
     }
 }
 

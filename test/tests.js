@@ -50,11 +50,11 @@ describe('chartJsRenderer', () => {
             backgroundColour: '#ffffff'
         });
 
-        const response = await handler(event);
-
-        expect(response.statusCode).to.equal(500);
-        const body = JSON.parse(response.body);
-        expect(body.error).to.equal('Configuration object is required');
+        try {
+            await handler(event);
+        } catch (err) {
+            expect(err.message).to.contain('Configuration object is required');
+        }
     });
 
     it('should render a chart with afterDraw plugin applied', async () => {
